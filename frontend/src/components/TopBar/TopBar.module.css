@@ -1,0 +1,36 @@
+.topBar {
+  grid-area: topbar;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 2rem;
+  background-color: var(--bg-light);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.logo {
+  font-weight: bold;
+  font-size: 1.2rem;
+  color: var(--text-primary);
+}
+
+.telemetry {
+  display: flex;
+  gap: 2rem;
+}
+
+.telemetryItem {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.telemetryItem svg {
+  color: var(--accent-blue);
+}
+
+.telemetryItem strong {
+  color: var(--text-primary);
+}

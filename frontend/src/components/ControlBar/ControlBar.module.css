@@ -1,0 +1,54 @@
+.controlBar {
+  grid-area: controls;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1.5rem;
+  background-color: var(--bg-light);
+  border-top: 1px solid var(--border-color);
+}
+
+.button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  background: none;
+  border: 2px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 0.8rem 1.5rem;
+  border-radius: 8px;
+  font-size: 1.5rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.button span {
+  font-size: 0.8rem;
+}
+
+.button:hover {
+  background-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+.takeoff {
+  color: #28a745;
+  border-color: #28a745;
+}
+
+.takeoff:hover {
+  background-color: #28a745;
+  color: white;
+}
+
+.report {
+  color: var(--accent-red);
+  border-color: var(--accent-red);
+}
+
+.report:hover {
+  background-color: var(--accent-red);
+  color: white;
+}
