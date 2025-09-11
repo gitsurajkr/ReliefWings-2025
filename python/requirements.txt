@@ -1,0 +1,34 @@
+# ReliefWings Drone Telemetry System - Python Dependencies
+# Install with: pip install -r requirements.txt
+
+# DroneKit and MAVLink for Pixhawk communication
+dronekit==2.9.2
+pymavlink==2.4.37
+
+# WebSocket client for real-time communication
+websocket-client==1.6.4
+
+# Async WebSocket support
+websockets==12.0
+
+# Database and data handling
+sqlite3  # Built-in to Python, no install needed
+
+# Async support
+asyncio  # Built-in to Python, no install needed
+
+# Data validation and serialization
+dataclasses  # Built-in to Python 3.7+, no install needed
+
+# Logging and system utilities
+logging  # Built-in to Python, no install needed
+threading  # Built-in to Python, no install needed
+signal  # Built-in to Python, no install needed
+time  # Built-in to Python, no install needed
+os  # Built-in to Python, no install needed
+json  # Built-in to Python, no install needed
+math  # Built-in to Python, no install needed
+
+# Optional: Enhanced logging and monitoring
+# colorlog==6.7.0  # For colored console logging
+# psutil==5.9.6    # For system resource monitoring
