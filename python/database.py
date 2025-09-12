@@ -7,6 +7,7 @@ Handles SQLite database operations for offline telemetry buffering
 import sqlite3
 import json
 import logging
+import time
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 import os
@@ -14,7 +15,7 @@ import os
 logger = logging.getLogger(__name__)
 
 class TelemetryDatabase:
-    """SQLite database manager for offline telemetry buffering"""
+    # SQLite database manager for offline telemetry buffering
     
     def __init__(self, db_path: str = "/tmp/drone_telemetry.db"):
         self.db_path = db_path
@@ -84,7 +85,7 @@ class TelemetryDatabase:
             raise
     
     def store_telemetry(self, drone_id: str, telemetry_data: Dict[str, Any], seq_number: int) -> bool:
-        """Store telemetry data in database"""
+        # Store telemetry data in database
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
@@ -110,7 +111,7 @@ class TelemetryDatabase:
             return False
     
     def get_unsent_telemetry(self, limit: int = 100) -> List[Dict[str, Any]]:
-        """Get unsent telemetry data from database"""
+        # Get unsent telemetry data from database
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
@@ -144,7 +145,7 @@ class TelemetryDatabase:
             return []
     
     def mark_telemetry_sent(self, telemetry_ids: List[int]) -> bool:
-        """Mark telemetry records as sent"""
+        # Mark telemetry records as sent
         try:
             if not telemetry_ids:
                 return True
@@ -170,7 +171,7 @@ class TelemetryDatabase:
             return False
     
     def store_command(self, drone_id: str, command: str, args: Dict[str, Any] = None) -> int:
-        """Store received command in database"""
+        # Store received command in database
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
@@ -196,7 +197,7 @@ class TelemetryDatabase:
             return -1
     
     def update_command_status(self, command_id: int, status: str, result: Any = None) -> bool:
-        """Update command execution status"""
+        # Update command execution status
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
@@ -222,7 +223,7 @@ class TelemetryDatabase:
             return False
     
     def get_pending_commands(self, drone_id: str) -> List[Dict[str, Any]]:
-        """Get pending commands for a drone"""
+        # Get pending commands for a drone
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
@@ -345,6 +346,18 @@ class TelemetryDatabase:
             # Get database file size
             db_size = os.path.getsize(self.db_path) if os.path.exists(self.db_path) else 0
             
+            # Get latest telemetry timestamp
+            cursor.execute('SELECT MAX(timestamp) FROM telemetry')
+            latest_telemetry = cursor.fetchone()[0]
+            
+            # Get validation error count from recent telemetry
+            cursor.execute('''
+                SELECT COUNT(*) FROM telemetry 
+                WHERE data LIKE '%"is_valid":false%' 
+                AND timestamp > ?
+            ''', (time.time() - 3600,))  # Last hour
+            recent_validation_errors = cursor.fetchone()[0]
+            
             conn.close()
             
             return {
@@ -354,7 +367,8 @@ class TelemetryDatabase:
                 'telemetry': {
                     'total': total_telemetry,
                     'unsent': unsent_telemetry,
-                    'sent': total_telemetry - unsent_telemetry
+                    'sent': total_telemetry - unsent_telemetry,
+                    'latest_timestamp': latest_telemetry
                 },
                 'commands': {
                     'total': total_commands,
@@ -363,9 +377,93 @@ class TelemetryDatabase:
                 },
                 'logs': {
                     'total': total_logs
+                },
+                'health': {
+                    'recent_validation_errors': recent_validation_errors,
+                    'buffer_health': 'good' if unsent_telemetry < 100 else 'warning' if unsent_telemetry < 500 else 'critical'
                 }
             }
             
         except Exception as e:
             logger.error(f"Failed to get database stats: {e}")
             return {}
+
+    def get_telemetry_history(self, drone_id: str, limit: int = 50) -> List[Dict[str, Any]]:
+        """Get recent telemetry history for a specific drone"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                SELECT timestamp, seq_number, data
+                FROM telemetry
+                WHERE drone_id = ?
+                ORDER BY timestamp DESC
+                LIMIT ?
+            ''', (drone_id, limit))
+            
+            rows = cursor.fetchall()
+            conn.close()
+            
+            history = []
+            for row in rows:
+                history.append({
+                    'timestamp': row[0],
+                    'seq_number': row[1],
+                    'data': json.loads(row[2])
+                })
+            
+            return history
+            
+        except Exception as e:
+            logger.error(f"Failed to get telemetry history: {e}")
+            return []
+
+    def get_command_history(self, drone_id: str, limit: int = 20) -> List[Dict[str, Any]]:
+        """Get recent command history for a specific drone"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute('''
+                SELECT command, args, status, result, received_at, executed_at
+                FROM commands
+                WHERE drone_id = ?
+                ORDER BY received_at DESC
+                LIMIT ?
+            ''', (drone_id, limit))
+            
+            rows = cursor.fetchall()
+            conn.close()
+            
+            history = []
+            for row in rows:
+                history.append({
+                    'command': row[0],
+                    'args': json.loads(row[1]) if row[1] else None,
+                    'status': row[2],
+                    'result': json.loads(row[3]) if row[3] else None,
+                    'received_at': row[4],
+                    'executed_at': row[5]
+                })
+            
+            return history
+            
+        except Exception as e:
+            logger.error(f"Failed to get command history: {e}")
+            return []
+
+    def vacuum_database(self) -> bool:
+        """Optimize database by running VACUUM command"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute('VACUUM')
+            conn.close()
+            
+            logger.info("Database vacuum completed successfully")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to vacuum database: {e}")
+            return False

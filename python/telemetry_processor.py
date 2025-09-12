@@ -8,24 +8,58 @@ import logging
 import time
 import json
 from typing import Dict, Any, Optional, List, Tuple
-from dataclasses import dataclass, asdict
+
 from datetime import datetime
 import math
 
 logger = logging.getLogger(__name__)
 
-@dataclass
+
 class TelemetryValidationRules:
     """Validation rules for telemetry data"""
-    lat_range: Tuple[float, float] = (-90.0, 90.0)
-    lng_range: Tuple[float, float] = (-180.0, 180.0)
-    alt_range: Tuple[float, float] = (-1000.0, 50000.0)  # meters
-    heading_range: Tuple[float, float] = (0.0, 360.0)
-    battery_voltage_range: Tuple[float, float] = (0.0, 30.0)  # volts
-    battery_level_range: Tuple[int, int] = (0, 100)  # percentage
-    gps_fix_types: List[int] = [0, 1, 2, 3, 4, 5, 6]  # Valid GPS fix types
-    max_velocity: float = 100.0  # m/s
-    max_attitude_angle: float = 180.0  # degrees
+    # lat_range: Tuple[float, float] = (-90.0, 90.0)
+    # lng_range: Tuple[float, float] = (-180.0, 180.0)
+    # alt_range: Tuple[float, float] = (-1000.0, 50000.0)  # Altitude
+    # ground_speed: Tuple[float, float] = (0.0, 100.0)    # Ground Speed
+    # vertical_speed: Tuple[float, float] = (-50.0, 50.0)  # Vertical Speed
+
+    # heading_range: Tuple[float, float] = (0.0, 360.0)
+    # battery_voltage_range: Tuple[float, float] = (0.0, 30.0)  # volts
+    # battery_level_range: Tuple[int, int] = (0, 100)  # percentage
+    # gps_fix_types: List[int] = [0, 1, 2, 3, 4, 5, 6]  # Valid GPS fix types
+    # max_velocity: float = 100.0  # m/s
+    # max_attitude_angle: float = 180.0  # degrees
+
+    altitude: Tuple[float, float] = (-1000.0, 50000.0)  # Altitude in meters
+    ground_speed: Tuple[float, float] = (0.0, 100.0)    # Ground Speed in m/s
+    vertical_speed: Tuple[float, float] = (-50.0, 50.0)  # Vertical Speed in m/s
+    distance_to_waypoint: Tuple[float, float] = (0.0, 100000.0)  # Distance in meters
+    latitude: Tuple[float, float] = (-90.0, 90.0)       # Latitude in degrees
+    longitude: Tuple[float, float] = (-180.0, 180.0)    # Longitude in degrees
+    heading: Tuple[float, float] = (0.0, 360.0)         # Heading in degrees
+    home_distance: Tuple[float, float] = (0.0, 100000.0) # Home distance in meters
+    gps_signal: Tuple[float, float] = (0.0, 100.0)      # GPS signal strength
+    satellite_count: Tuple[int, int] = (0, 12)          # Number of satellites
+    battery_level: Tuple[int, int] = (0, 100)           # Battery level in percentage
+    battery_voltage: Tuple[float, float] = (0.0, 30.0)   # Battery voltage in volts
+    current: Tuple[float, float] = (0.0, 100.0)          # Current in amps
+    throttle: Tuple[float, float] = (0.0, 100.0)        # Throttle in percentage
+    pitch: Tuple[float, float] = (-90.0, 90.0)         # Pitch in degrees 
+    roll: Tuple[float, float] = (-180.0, 180.0)        # Roll in degrees
+    yaw: Tuple[float, float] = (0.0, 360.0)             # Yaw in degrees
+    flight_mode: List[str] = ["MANUAL", "STABILIZE", "ALT_HOLD", "LOITER", "RTL", "AUTO", "GUIDED"]
+    arm_status: List[bool] = [True, False]
+    rssi: Tuple[int, int] = (0, 100)                   # RSSI in percentage (Recieved Signal Strength Indicator)
+    wayPoints: Tuple[int, int] = (0, 100)              # Number of waypoints
+    current_waypoint: Tuple[int, int] = (0, 100)     # Current waypoint index
+    mission_progress: Tuple[float, float] = (0.0, 100.0) # Mission progress in percentage
+
+
+
+#   airSpeed: number;
+#   temperature: number;
+#   windSpeed: number;
+#   windDirection: number;
 
 class TelemetryProcessor:
     """Processes and validates drone telemetry data"""
@@ -88,104 +122,133 @@ class TelemetryProcessor:
         warnings = []
         
         try:
-            # Validate latitude
-            lat = data.get('lat', 0)
-            if not (self.validation_rules.lat_range[0] <= lat <= self.validation_rules.lat_range[1]):
-                errors.append(f"Invalid latitude: {lat}")
-            
-            # Validate longitude
-            lng = data.get('lng', 0)
-            if not (self.validation_rules.lng_range[0] <= lng <= self.validation_rules.lng_range[1]):
-                errors.append(f"Invalid longitude: {lng}")
-            
-            # Validate altitude
+
+            # validate Altitude
             alt = data.get('alt', 0)
-            if not (self.validation_rules.alt_range[0] <= alt <= self.validation_rules.alt_range[1]):
-                errors.append(f"Invalid altitude: {alt}")
-            
-            # Validate heading
+            if not (self.validation_rules.altitude[0] <= alt <= self.validation_rules.altitude[1]):
+                errors.append(f"Invalid altitude: {alt}m")
+
+            # ground speed
+            gs = data.get('velocity', {}).get('ground_speed', 0)
+            if not (self.validation_rules.ground_speed[0] <= gs <= self.validation_rules.ground_speed[1]):
+                errors.append(f"Invalid ground speed: {gs}m/s")
+
+            # vertical speed
+            vs = data.get('velocity', {}).get('vz', 0)
+            if not (self.validation_rules.vertical_speed[0] <= vs <= self.validation_rules.vertical_speed[1]):
+                errors.append(f"Invalid vertical speed: {vs}m/s")
+
+            # distance to waypoint
+            dtw = data.get('distance_to_waypoint', 0)
+            if not (self.validation_rules.distance_to_waypoint[0] <= dtw <= self.validation_rules.distance_to_waypoint[1]):
+                errors.append(f"Invalid distance to waypoint: {dtw}m")
+
+            # latitude
+            lat = data.get('lat', 0)
+            if not (self.validation_rules.latitude[0] <= lat <= self.validation_rules.latitude[1]):
+                errors.append(f"Invalid latitude: {lat}°")
+            # longitude
+            lng = data.get('lng', 0)
+            if not (self.validation_rules.longitude[0] <= lng <= self.validation_rules.longitude[1]):
+                errors.append(f"Invalid longitude: {lng}°")
+            # heading
             heading = data.get('heading', 0)
-            if not (0 <= heading <= 360):
-                # Normalize heading
-                heading = heading % 360
-                data['heading'] = heading
-                warnings.append(f"Normalized heading to {heading}")
+            if not (self.validation_rules.heading[0] <= heading <= self.validation_rules.heading[1]):
+                errors.append(f"Invalid heading: {heading}°")
+            # home distance
+            hd = data.get('distance_from_home', 0)
+            if not (self.validation_rules.home_distance[0] <= hd <= self.validation_rules.home_distance[1]):
+                errors.append(f"Invalid home distance: {hd}m")
+            # gps signal
+            gps_signal = data.get('gps', {}).get('signal_strength', 0)
+            if not (self.validation_rules.gps_signal[0] <= gps_signal <= self.validation_rules.gps_signal[1]):
+                warnings.append(f"Unusual GPS signal strength: {gps_signal}%")
+            # satellite count
+            sat_count = data.get('gps', {}).get('satellites_visible', 0)
+            if not (self.validation_rules.satellite_count[0] <= sat_count <= self.validation_rules.satellite_count[1]):
+                warnings.append(f"Unusual satellite count: {sat_count}")
+            # battery level
+            battery_level = data.get('battery', {}).get('level', -1)
+            if battery_level >= 0 and not (self.validation_rules.battery_level[0] <= battery_level <= self.validation_rules.battery_level[1]):
+                errors.append(f"Invalid battery level: {battery_level}%")
+            elif battery_level >= 0:
+                if battery_level <= 10:
+                    warnings.append(f"Critical battery level: {battery_level}%")
+                elif battery_level <= 20:
+                    warnings.append(f"Low battery level: {battery_level}%")
+            # battery voltage
+            battery_voltage = data.get('battery', {}).get('voltage', 0)
+            if not (self.validation_rules.battery_voltage[0] <= battery_voltage <= self.validation_rules.battery_voltage[1]):
+                if battery_voltage > 0:  # Only warn if voltage is positive
+                    warnings.append(f"Unusual battery voltage: {battery_voltage}V")
+            # current
+            current = data.get('battery', {}).get('current', 0)
+            if not (self.validation_rules.current[0] <= current <= self.validation_rules.current[1]):
+                warnings.append(f"Unusual current draw: {current}A")
+            # throttle
+            throttle = data.get('throttle', 0)
+            if not (self.validation_rules.throttle[0] <= throttle <= self.validation_rules.throttle[1]):
+                warnings.append(f"Unusual throttle setting: {throttle}%")
+            # pitch
+            pitch = data.get('attitude', {}).get('pitch', 0)
+            if not (self.validation_rules.pitch[0] <= pitch <= self.validation_rules.pitch[1]):
+                errors.append(f"Invalid pitch angle: {pitch}°")
+            # roll
+            roll = data.get('attitude', {}).get('roll', 0)
+            if not (self.validation_rules.roll[0] <= roll <= self.validation_rules.roll[1]):
+                errors.append(f"Invalid roll angle: {roll}°")
             
-            # Validate velocity
-            velocity = data.get('velocity', {})
-            if isinstance(velocity, dict):
-                for vel_component in ['vx', 'vy', 'vz']:
-                    vel_value = velocity.get(vel_component, 0)
-                    if abs(vel_value) > self.validation_rules.max_velocity:
-                        warnings.append(f"High {vel_component} velocity: {vel_value} m/s")
-                
-                ground_speed = velocity.get('ground_speed', 0)
-                if ground_speed > self.validation_rules.max_velocity:
-                    warnings.append(f"High ground speed: {ground_speed} m/s")
+            # yaw
+            yaw = data.get('attitude', {}).get('yaw', 0)
+            if not (self.validation_rules.yaw[0] <= yaw <= self.validation_rules.yaw[1]):
+                errors.append(f"Invalid yaw angle: {yaw}°")
+            # flight mode
+            flight_mode = data.get('mode', '')
+            if flight_mode not in self.validation_rules.flight_mode:
+                errors.append(f"Invalid flight mode: {flight_mode}")
+            # arm status
+            armed = data.get('armed', None)
+            if armed not in self.validation_rules.arm_status:
+                errors.append(f"Invalid arm status: {armed}")
             
-            # Validate attitude
-            attitude = data.get('attitude', {})
-            if isinstance(attitude, dict):
-                for angle_name in ['roll', 'pitch', 'yaw']:
-                    angle_value = attitude.get(angle_name, 0)
-                    if abs(angle_value) > self.validation_rules.max_attitude_angle:
-                        errors.append(f"Invalid {angle_name} angle: {angle_value}")
-            
-            # Validate battery
-            battery = data.get('battery', {})
-            if isinstance(battery, dict):
-                voltage = battery.get('voltage', 0)
-                if not (self.validation_rules.battery_voltage_range[0] <= voltage <= self.validation_rules.battery_voltage_range[1]):
-                    if voltage > 0:  # Only warn if voltage is positive
-                        warnings.append(f"Unusual battery voltage: {voltage}V")
-                
-                level = battery.get('level', -1)
-                if level >= 0 and not (self.validation_rules.battery_level_range[0] <= level <= self.validation_rules.battery_level_range[1]):
-                    errors.append(f"Invalid battery level: {level}%")
-                
-                # Battery level warnings
-                if level >= 0:
-                    if level <= 10:
-                        warnings.append(f"Critical battery level: {level}%")
-                    elif level <= 20:
-                        warnings.append(f"Low battery level: {level}%")
-            
-            # Validate GPS
-            gps = data.get('gps', {})
-            if isinstance(gps, dict):
-                fix_type = gps.get('fix_type', 0)
-                if fix_type not in self.validation_rules.gps_fix_types:
-                    errors.append(f"Invalid GPS fix type: {fix_type}")
-                elif fix_type < 2:
-                    warnings.append(f"Poor GPS fix: {fix_type}")
-                
-                satellites = gps.get('satellites_visible', 0)
-                if satellites < 4:
-                    warnings.append(f"Low satellite count: {satellites}")
-            
+            # rssi
+            rssi = data.get('rssi', 0)
+            if not (self.validation_rules.rssi[0] <= rssi <= self.validation_rules.rssi[1]):
+                warnings.append(f"Unusual RSSI: {rssi}%")
+            # waypoints
+            waypoints = data.get('waypoints', 0)
+            if not (self.validation_rules.wayPoints[0] <= waypoints <= self.validation_rules.wayPoints[1]):
+                warnings.append(f"Unusual number of waypoints: {waypoints}")
+            # current waypoint
+            current_wp = data.get('currentWaypoint', 0)
+            if not (self.validation_rules.current_waypoint[0] <= current_wp <= self.validation_rules.current_waypoint[1]):
+                warnings.append(f"Unusual current waypoint index: {current_wp}")
+            # mission progress
+            mission_progress = data.get('mission_progress', 0)
+            if not (self.validation_rules.mission_progress[0] <= mission_progress <= self.validation_rules.mission_progress[1]):
+                warnings.append(f"Unusual mission progress: {mission_progress}%")   
             # Validate timestamp
             ts = data.get('ts', 0)
             current_time = time.time()
             if abs(ts - current_time) > 60:  # More than 1 minute difference
                 warnings.append(f"Timestamp deviation: {ts - current_time:.1f}s")
             
-            # Check for required fields
+            
             required_fields = ['drone_id', 'ts', 'seq', 'lat', 'lng', 'alt', 'mode', 'armed']
             for field in required_fields:
                 if field not in data:
                     errors.append(f"Missing required field: {field}")
             
-            # Validate data types
+            # validate data types
             if 'seq' in data and not isinstance(data['seq'], int):
                 try:
                     data['seq'] = int(data['seq'])
                 except ValueError:
                     errors.append("Invalid sequence number type")
-            
+
             if 'armed' in data and not isinstance(data['armed'], bool):
                 data['armed'] = bool(data['armed'])
-            
-            # Store validation errors for analysis
+
             if errors:
                 self.validation_errors.extend(errors)
                 # Keep only last 100 errors
@@ -337,6 +400,10 @@ class TelemetryProcessor:
     def format_for_websocket(self, data: Dict[str, Any]) -> str:
         """Format telemetry data for WebSocket transmission"""
         try:
+            # Ensure nested dicts exist
+            for key in ['velocity', 'attitude', 'battery', 'gps', 'sensors']:
+                if key not in data or not isinstance(data.get(key), dict):
+                    data[key] = {}
             # Create a clean copy for transmission
             clean_data = {
                 'type': 'telemetry',
@@ -381,32 +448,49 @@ class TelemetryProcessor:
             })
     
     def format_for_database(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Format telemetry data for database storage"""
+        """Format telemetry data for database storage according to TelemetryValidationRules"""
         try:
-            # Remove processing-specific fields that don't need storage
             db_data = data.copy()
-            
-            # Remove large or temporary fields
-            fields_to_remove = ['processing_error', 'processed_at', 'processing_latency']
+            # Remove processing-specific fields
+            fields_to_remove = [
+                'processing_error', 'processed_at', 'processing_latency',
+                'validation', 'signal_quality'
+            ]
             for field in fields_to_remove:
                 db_data.pop(field, None)
-            
-            # Ensure all numeric fields are properly typed
-            numeric_fields = ['lat', 'lng', 'alt', 'heading', 'ts', 'seq']
-            for field in numeric_fields:
+
+            # Ensure all fields in TelemetryValidationRules are present and properly typed
+            rules = asdict(self.validation_rules)
+            for field, rule in rules.items():
                 if field in db_data:
-                    try:
-                        if field == 'seq':
-                            db_data[field] = int(db_data[field])
+                    # Handle numeric fields (tuple or list means range)
+                    if isinstance(rule, (tuple, list)):
+                        # Try to cast to int if both bounds are int, else float
+                        if all(isinstance(x, int) for x in rule):
+                            try:
+                                db_data[field] = int(db_data[field])
+                            except Exception:
+                                logger.warning(f"Could not convert {field} to int: {db_data[field]}")
                         else:
-                            db_data[field] = float(db_data[field])
-                    except (ValueError, TypeError):
-                        logger.warning(f"Could not convert {field} to numeric: {db_data[field]}")
-            
+                            try:
+                                db_data[field] = float(db_data[field])
+                            except Exception:
+                                logger.warning(f"Could not convert {field} to float: {db_data[field]}")
+                    # Handle enum/list fields (like flight_mode, arm_status)
+                    elif isinstance(rule, list):
+                        # No conversion, just ensure present
+                        pass
+
+            # Optionally, keep only fields defined in TelemetryValidationRules and a few required fields
+            required_fields = ['drone_id', 'ts', 'seq', 'mode', 'armed']
+            allowed_fields = set(rules.keys()).union(required_fields)
+            db_data = {k: v for k, v in db_data.items() if k in allowed_fields or isinstance(v, dict)}
+
             return db_data
-            
+
         except Exception as e:
             logger.error(f"Failed to format telemetry for database: {e}")
+            return data
             return data
     
     def get_health_metrics(self) -> Dict[str, Any]:

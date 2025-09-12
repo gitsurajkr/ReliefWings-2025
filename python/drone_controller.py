@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Drone Controller Module for ReliefWings Telemetry System
 Handles DroneKit vehicle operations and command execution
@@ -13,7 +12,7 @@ import time
 import math
 
 # DroneKit imports
-from dronekit import connect, Vehicle, Command, LocationGlobalRelative, LocationGlobal
+from dronekit import connect, Vehicle, LocationGlobalRelative, LocationGlobal
 from pymavlink import mavutil
 
 logger = logging.getLogger(__name__)
@@ -29,7 +28,6 @@ class DroneStatus(Enum):
     LANDED = "landed"
     ERROR = "error"
 
-@dataclass
 class TelemetryData:
     """Structured telemetry data"""
     drone_id: str
@@ -76,7 +74,7 @@ class DroneController:
         self.telemetry_callback = callback
     
     def set_status_callback(self, callback: Callable[[DroneStatus, str], None]):
-        """Set callback for status changes"""
+        # Set callback for status changes
         self.status_callback = callback
     
     def set_command_result_callback(self, callback: Callable[[int, str, Dict[str, Any]], None]):
@@ -172,62 +170,84 @@ class DroneController:
                 logger.error(f"Status callback error: {e}")
     
     def get_telemetry_data(self) -> Optional[TelemetryData]:
-        """Get current telemetry data from vehicle"""
+        """Get current telemetry data from vehicle and log all fields with try/except."""
         if not self.vehicle:
             return None
-        
         try:
             self.seq_number += 1
-            
             # Get location data
-            location = self.vehicle.location.global_relative_frame
-            if location is None:
+            try:
+                location = self.vehicle.location.global_relative_frame
+                if location is None:
+                    location = LocationGlobalRelative(0, 0, 0)
+            except Exception as e:
+                logger.error(f"Error getting location: {e}")
                 location = LocationGlobalRelative(0, 0, 0)
-            
+
             # Get attitude data
-            attitude = self.vehicle.attitude
-            attitude_dict = {
-                'roll': math.degrees(attitude.roll) if attitude else 0,
-                'pitch': math.degrees(attitude.pitch) if attitude else 0,
-                'yaw': math.degrees(attitude.yaw) if attitude else 0
-            }
-            
+            try:
+                attitude = self.vehicle.attitude
+                attitude_dict = {
+                    'roll': math.degrees(attitude.roll) if attitude else 0,
+                    'pitch': math.degrees(attitude.pitch) if attitude else 0,
+                    'yaw': math.degrees(attitude.yaw) if attitude else 0
+                }
+            except Exception as e:
+                logger.error(f"Error getting attitude: {e}")
+                attitude_dict = {'roll': 0, 'pitch': 0, 'yaw': 0}
+
             # Get velocity data
-            velocity = self.vehicle.velocity
-            velocity_dict = {
-                'vx': velocity[0] if velocity and len(velocity) > 0 else 0,
-                'vy': velocity[1] if velocity and len(velocity) > 1 else 0,
-                'vz': velocity[2] if velocity and len(velocity) > 2 else 0,
-                'ground_speed': math.sqrt(velocity[0]**2 + velocity[1]**2) if velocity and len(velocity) >= 2 else 0
-            }
-            
+            try:
+                velocity = self.vehicle.velocity
+                velocity_dict = {
+                    'vx': velocity[0] if velocity and len(velocity) > 0 else 0,
+                    'vy': velocity[1] if velocity and len(velocity) > 1 else 0,
+                    'vz': velocity[2] if velocity and len(velocity) > 2 else 0,
+                    'ground_speed': math.sqrt(velocity[0]**2 + velocity[1]**2) if velocity and len(velocity) >= 2 else 0
+                }
+            except Exception as e:
+                logger.error(f"Error getting velocity: {e}")
+                velocity_dict = {'vx': 0, 'vy': 0, 'vz': 0, 'ground_speed': 0}
+
             # Get battery data
-            battery = self.vehicle.battery
-            battery_dict = {
-                'voltage': float(battery.voltage) if battery and battery.voltage else 0.0,
-                'current': float(battery.current) if battery and battery.current else 0.0,
-                'level': int(battery.level) if battery and battery.level is not None else -1,
-                'remaining': int(battery.level) if battery and battery.level is not None else -1
-            }
-            
+            try:
+                battery = self.vehicle.battery
+                battery_dict = {
+                    'voltage': float(battery.voltage) if battery and battery.voltage else 0.0,
+                    'current': float(battery.current) if battery and battery.current else 0.0,
+                    'level': int(battery.level) if battery and battery.level is not None else -1,
+                    'remaining': int(battery.level) if battery and battery.level is not None else -1
+                }
+            except Exception as e:
+                logger.error(f"Error getting battery: {e}")
+                battery_dict = {'voltage': 0.0, 'current': 0.0, 'level': -1, 'remaining': -1}
+
             # Get GPS data
-            gps = self.vehicle.gps_0
-            gps_dict = {
-                'fix_type': int(gps.fix_type) if gps else 0,
-                'satellites_visible': int(gps.satellites_visible) if gps else 0,
-                'eph': float(gps.eph) if gps else 9999,
-                'epv': float(gps.epv) if gps else 9999
-            }
-            
+            try:
+                gps = self.vehicle.gps_0
+                gps_dict = {
+                    'fix_type': int(gps.fix_type) if gps else 0,
+                    'satellites_visible': int(gps.satellites_visible) if gps else 0,
+                    'eph': float(gps.eph) if gps else 9999,
+                    'epv': float(gps.epv) if gps else 9999
+                }
+            except Exception as e:
+                logger.error(f"Error getting GPS: {e}")
+                gps_dict = {'fix_type': 0, 'satellites_visible': 0, 'eph': 9999, 'epv': 9999}
+
             # Get sensor health
-            sensors = {
-                'accelerometer': True,  # Assume healthy if connected
-                'gyroscope': True,
-                'magnetometer': True,
-                'barometer': True,
-                'gps': gps_dict['fix_type'] >= 2 if gps else False
-            }
-            
+            try:
+                sensors = {
+                    'accelerometer': True,  # Assume healthy if connected
+                    'gyroscope': True,
+                    'magnetometer': True,
+                    'barometer': True,
+                    'gps': gps_dict['fix_type'] >= 2 if gps_dict else False
+                }
+            except Exception as e:
+                logger.error(f"Error getting sensors: {e}")
+                sensors = {'accelerometer': False, 'gyroscope': False, 'magnetometer': False, 'barometer': False, 'gps': False}
+
             # Create telemetry data structure
             telemetry = TelemetryData(
                 drone_id=self.drone_id,
@@ -241,23 +261,21 @@ class DroneController:
                 attitude=attitude_dict,
                 battery=battery_dict,
                 gps=gps_dict,
-                mode=str(self.vehicle.mode.name),
-                armed=bool(self.vehicle.armed),
-                system_status=str(self.vehicle.system_status.state),
+                mode=str(self.vehicle.mode.name) if self.vehicle and self.vehicle.mode else "UNKNOWN",
+                armed=bool(self.vehicle.armed) if self.vehicle else False,
+                system_status=str(self.vehicle.system_status.state) if self.vehicle and self.vehicle.system_status else "UNKNOWN",
                 sensors=sensors
             )
-            
             self.last_telemetry = telemetry
-            
+            # Log all telemetry data to console
+            logger.info(f"TelemetryData: {telemetry}")
             # Notify callback
             if self.telemetry_callback:
                 try:
                     self.telemetry_callback(telemetry)
                 except Exception as e:
                     logger.error(f"Telemetry callback error: {e}")
-            
             return telemetry
-            
         except Exception as e:
             logger.error(f"Failed to get telemetry data: {e}")
             return None
@@ -541,3 +559,4 @@ class DroneController:
                 return False
         
         return True
+ 

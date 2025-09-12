@@ -8,6 +8,7 @@ import websocket
 import json
 import threading
 import time
+import asyncio
 import logging
 from typing import Dict, Any, Optional, Callable
 
@@ -42,7 +43,32 @@ class WebSocketClient:
         else:
             logger.warning(f"Unknown callback event: {event}")
     
-    def connect(self) -> bool:
+    def set_message_callback(self, callback: Callable):
+        """Set callback for incoming messages"""
+        self.callbacks['on_message'] = callback
+    
+    def set_connection_callback(self, callback: Callable):
+        """Set callback for connection status changes"""
+        self.callbacks['on_connected'] = lambda: callback(True, "Connected")
+        self.callbacks['on_disconnected'] = lambda: callback(False, "Disconnected")
+        self.callbacks['on_error'] = lambda error: callback(False, f"Error: {error}")
+    
+    def send_message(self, message: Dict[str, Any]) -> bool:
+        """Send generic message to server"""
+        try:
+            if not self.connected or not self.ws:
+                logger.warning("WebSocket not connected, cannot send message")
+                return False
+            
+            self.ws.send(json.dumps(message))
+            logger.debug(f"Sent message: {message.get('type', 'unknown')}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to send message: {e}")
+            return False
+    
+    async def connect(self) -> bool:
         """Connect to WebSocket server"""
         try:
             logger.info(f"Connecting to WebSocket server: {self.websocket_url}")
@@ -70,7 +96,7 @@ class WebSocketClient:
             timeout = 10
             start_time = time.time()
             while not self.connected and (time.time() - start_time) < timeout:
-                time.sleep(0.1)
+                await asyncio.sleep(0.1)
             
             if self.connected:
                 logger.info("WebSocket connected successfully")
