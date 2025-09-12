@@ -13,7 +13,6 @@ import math
 
 # DroneKit imports
 from dronekit import connect, Vehicle, LocationGlobalRelative, LocationGlobal
-from pymavlink import mavutil
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +27,7 @@ class DroneStatus(Enum):
     LANDED = "landed"
     ERROR = "error"
 
+@dataclass
 class TelemetryData:
     """Structured telemetry data"""
     drone_id: str
@@ -49,7 +49,7 @@ class TelemetryData:
 class DroneController:
     """DroneKit vehicle controller for telemetry and command execution"""
     
-    def __init__(self, drone_id: str, connection_string: str = "/dev/ttyUSB0"):
+    def __init__(self, drone_id: str, connection_string: str = "/dev/ttyACM0"):
         self.drone_id = drone_id
         self.connection_string = connection_string
         self.vehicle: Optional[Vehicle] = None

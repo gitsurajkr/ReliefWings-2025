@@ -20,10 +20,11 @@ class WebSocketClient:
     def __init__(self, 
                  websocket_url: str = "ws://localhost:8081",
                  drone_id: str = "drone-01",
-                 api_key: str = None):
+                 api_key: str = None):  # Disabled for testing
         self.websocket_url = websocket_url
         self.drone_id = drone_id
-        self.api_key = api_key
+        # self.api_key = api_key  # Disabled for testing
+        self.api_key = None  # Always None for testing
         self.ws: Optional[websocket.WebSocketApp] = None
         self.connected = False
         self.reconnect_interval = 5
@@ -73,12 +74,13 @@ class WebSocketClient:
         try:
             logger.info(f"Connecting to WebSocket server: {self.websocket_url}")
             
-            # WebSocket URL with authentication
-            auth_params = f"?drone_id={self.drone_id}"
-            if self.api_key:
-                auth_params += f"&api_key={self.api_key}"
+            # WebSocket URL (auth disabled for testing)
+            # auth_params = f"?drone_id={self.drone_id}"
+            # if self.api_key:
+            #     auth_params += f"&api_key={self.api_key}"
+            # full_url = f"{self.websocket_url}{auth_params}"
             
-            full_url = f"{self.websocket_url}{auth_params}"
+            full_url = self.websocket_url  # Direct connection for testing
             
             self.ws = websocket.WebSocketApp(
                 full_url,

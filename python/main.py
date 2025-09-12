@@ -71,9 +71,8 @@ class ReliefWingsTelemetrySystem:
         self.health_check_interval = config.telemetry.health_check_interval
         self.last_health_check = 0
         
-        # Setup signal handlers
-        signal.signal(signal.SIGINT, self._signal_handler)
-        signal.signal(signal.SIGTERM, self._signal_handler)
+
+    # (Signal handling moved to main entry point for better asyncio compatibility)
     
     def _setup_callbacks(self):
         """Setup callbacks between modular components"""
@@ -338,10 +337,8 @@ class ReliefWingsTelemetrySystem:
             except Exception as e:
                 logger.error(f"Cleanup loop error: {e}")
     
-    def _signal_handler(self, signum, frame):
-        """Handle shutdown signals"""
-        logger.info(f"Received signal {signum}, shutting down...")
-        asyncio.create_task(self.shutdown())
+
+    # Signal handling is now managed in the main entry point for proper asyncio shutdown
     
     async def shutdown(self):
         """Graceful shutdown of all components"""
@@ -393,48 +390,70 @@ class ReliefWingsTelemetrySystem:
 
 async def main():
     """Main entry point"""
+    import sys
+    import signal
+    # Validate configuration on startup
+    logger.info("Validating system configuration...")
+    validation = config.validate_config()
+    if not validation['valid']:
+        logger.error("Configuration issues found:")
+        for issue in validation['issues']:
+            logger.error(f"  - {issue}")
+        raise SystemExit("Configuration validation failed")
+
+    if validation['warnings']:
+        logger.warning("Configuration warnings:")
+        for warning in validation['warnings']:
+            logger.warning(f"  - {warning}")
+
+    # Check environment setup
+    env_info = config.get_environment_info()
+    if env_info['using_defaults']:
+        logger.info(f"Using default values for: {', '.join(env_info['using_defaults'])}")
+
+    # Configuration
+    drone_id = config.drone.drone_id
+    connection_string = config.drone.connection_string
+
+    logger.info(f"Initializing ReliefWings telemetry system...")
+    logger.info(f"Drone ID: {drone_id}")
+    logger.info(f"Connection: {connection_string}")
+    # logger.info(f"WebSocket URL: {config.websocket.server_url}")
+    # logger.info(f"Database: {config.database.db_path}")
+
+    # Create and run system
+    system = ReliefWingsTelemetrySystem(
+        drone_id=drone_id,
+        connection_string=connection_string
+    )
+
+    # Setup signal handlers for graceful shutdown
+    loop = asyncio.get_running_loop()
+    stop_event = asyncio.Event()
+
+    def _handle_sigterm():
+        logger.info("Received SIGTERM, shutting down...")
+        stop_event.set()
+
+    def _handle_sigint():
+        logger.info("Received SIGINT (Ctrl+C), shutting down...")
+        stop_event.set()
+
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        try:
+            loop.add_signal_handler(sig, _handle_sigint if sig == signal.SIGINT else _handle_sigterm)
+        except NotImplementedError:
+            # add_signal_handler may not be implemented on Windows
+            pass
+
     try:
-        # Validate configuration on startup
-        logger.info("Validating system configuration...")
-        validation = config.validate_config()
-        if not validation['valid']:
-            logger.error("Configuration issues found:")
-            for issue in validation['issues']:
-                logger.error(f"  - {issue}")
-            raise SystemExit("Configuration validation failed")
-        
-        if validation['warnings']:
-            logger.warning("Configuration warnings:")
-            for warning in validation['warnings']:
-                logger.warning(f"  - {warning}")
-        
-        # Check environment setup
-        env_info = config.get_environment_info()
-        if env_info['using_defaults']:
-            logger.info(f"Using default values for: {', '.join(env_info['using_defaults'])}")
-        
-        # Configuration
-        drone_id = config.drone.drone_id
-        connection_string = config.drone.connection_string
-        
-        logger.info(f"Initializing ReliefWings telemetry system...")
-        logger.info(f"Drone ID: {drone_id}")
-        logger.info(f"Connection: {connection_string}")
-        # logger.info(f"WebSocket URL: {config.websocket.server_url}")
-        # logger.info(f"Database: {config.database.db_path}")
-        
-        # Create and run system
-        system = ReliefWingsTelemetrySystem(
-            drone_id=drone_id,
-            connection_string=connection_string
-        )
-        
-        # Run the system
         await system.run()
-        
     except Exception as e:
         logger.error(f"System initialization failed: {e}")
         raise
+    finally:
+        await stop_event.wait()
+        await system.shutdown()
 
 if __name__ == "__main__":
     asyncio.run(main())

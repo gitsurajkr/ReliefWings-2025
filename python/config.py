@@ -12,8 +12,8 @@ from dataclasses import dataclass
 class DroneConfig:
     """Drone configuration settings"""
     drone_id: str = "DRONE_001"
-    connection_string: str = "/dev/ttyUSB0"
-    baud_rate: int = 57600
+    connection_string: str = "/dev/ttyACM0"
+    baud_rate: int = 115200
     connection_timeout: int = 30
     heartbeat_timeout: int = 15
 
@@ -51,7 +51,7 @@ class SystemConfig:
         # Load configuration from environment variables with defaults
         self.drone = DroneConfig(
             drone_id=os.environ.get('DRONE_ID', 'DRONE_001'),
-            connection_string=os.environ.get('VEHICLE_CONNECTION', '/dev/ttyUSB0'),
+            connection_string=os.environ.get('VEHICLE_CONNECTION', '/dev/ttyACM0'),
             baud_rate=int(os.environ.get('VEHICLE_BAUD_RATE', '57600')),
             connection_timeout=int(os.environ.get('VEHICLE_TIMEOUT', '30')),
             heartbeat_timeout=int(os.environ.get('HEARTBEAT_TIMEOUT', '15'))
